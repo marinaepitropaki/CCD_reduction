@@ -10,7 +10,7 @@ from astropy.nddata import CCDData
 import argparse
 import convenience_functions
 
-#this is my commen
+
 
 
 def bias_creation(args):
