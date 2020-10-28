@@ -9,6 +9,9 @@ from matplotlib import pyplot as plt
 from astropy.nddata import CCDData
 import argparse
 
+#this is my comment
+
+
 
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Directory of the bias')
