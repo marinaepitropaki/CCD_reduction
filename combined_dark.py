@@ -28,13 +28,23 @@ def dark_creation(args):
     combined_bias = CCDData.read(master_images.files_filtered(imagetyp='bias', combined=True,include_path=True)[0])
 
     combined_bias
-    for ccd, f_name in raw_files.ccds(imagetyp='dark', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-        print(f_name)
-        ccd = ccdp.subtract_bias(ccd, combined_bias)
-        ccd.write(calibrated_path / f_name, overwrite=True)
 
-    calibrated_images.refresh()
-    calibrated_images.summary
+    if args.notabias == True:
+        for ccd, f_name in raw_files.ccds(imagetyp='dark', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+            print(f_name)
+            ccd.write(calibrated_path / f_name, overwrite=True)
+
+        calibrated_images.refresh()
+        calibrated_images.summary
+    else:
+        
+        for ccd, f_name in raw_files.ccds(imagetyp='dark', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+            print(f_name)
+            ccd = ccdp.subtract_bias(ccd, combined_bias)
+            ccd.write(calibrated_path / f_name, overwrite=True)
+
+        calibrated_images.refresh()
+        calibrated_images.summary
 
     darks = calibrated_images.summary['imagetyp'] == 'DARK'
     dark_times = set(calibrated_images.summary['exptime'][darks])
@@ -64,5 +74,6 @@ def dark_creation(args):
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Directory of the bias and the darks')
     parser.add_argument('raw_files', type=str, default='/home/marinalinux/Downloads/data/bdf/', help='path of the raw files')
+    parser.add_argument('notabias',type=bool, default=False, help='set True if there is no bias to be substracted')
     args = parser.parse_args()
     combined_dark= dark_creation(args)
