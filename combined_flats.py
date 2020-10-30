@@ -10,71 +10,61 @@ from astropy.nddata import CCDData
 from astropy import units as u
 import os
 import argparse
+import convenience_functions
 
+def load_data(args):
 
+    bdf_files = ccdp.ImageFileCollection(args.data_path)
+    raw_flats = bdf_files.files_filtered(imagetyp='flat', include_path=True)
 
+    if args.calib_path:
+        calibrated_path=Path(args.calib_path)
+    else:
+        calibrated_path = Path(args.data_path, 'calibrated')
 
-def flat_creation(args):
-
-    raw_files = ccdp.ImageFileCollection(args.raw_files)
-
-    calibrated_path = Path(args.raw_files, 'calibrated')
     calibrated_path.mkdir(exist_ok=True)
     calibrated_images = ccdp.ImageFileCollection(calibrated_path)
 
-    master_path= Path(args.raw_files, 'masters')
-    master_path.mkdir(exist_ok=True)
-    master_images=ccdp.ImageFileCollection(master_path)
-
-
-
-    flat_image_type = 'FLAT'
-    flat_image_type
-    set(raw_files.summary['exptime'][raw_files.summary['imagetyp'] == 'FLAT'])
-
-
-    if args.notabias==True and args.notadark==True:
-        for a_flat, f_name in raw_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            print(f_name)
-            a_flat.write(calibrated_path / f_name, overwrite=True)
-
-        calibrated_images.refresh()
-
-    elif args.notabias==True and args.notadark==False:
-        combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
-                                                                    combined=True, 
-                                                                    include_path=True)[0])
-        for a_flat, f_name in raw_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            print(f_name)
-            a_flat = ccdp.subtract_dark(a_flat, combined_dark, exposure_time='EXPOSURE', exposure_unit=u.s, scale=True)
-            a_flat.write(calibrated_path / f_name, overwrite=True)
-
-        calibrated_images.refresh()
-    elif args.notabias==False and args.notadark==True:
-        combined_bias = list(master_images.ccds(combined=True, imagetyp='bias'))[0]
-        for a_flat, f_name in raw_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            print(f_name)
-            a_flat = ccdp.subtract_bias(a_flat, combined_bias)
-            a_flat.write(calibrated_path / f_name, overwrite=True)
-
-        calibrated_images.refresh()
+    if args.output_path:
+        output_path=Path(args.output_path)
     else:
+        output_path= Path(args.data_path, 'masters')
+
+    output_path.mkdir(exist_ok=True)
+    master_images=ccdp.ImageFileCollection(output_path)
+
+    calibrated_images.refresh()
+    
+    return bdf_files, raw_flats, calibrated_path,calibrated_images, output_path, master_images
+
+
+def flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, master_images, args):
+   
+    set(bdf_files.summary['exptime'][bdf_files.summary['imagetyp'] == 'FLAT'])
+
+    if args.cal_bias:
         combined_bias = list(master_images.ccds(combined=True, imagetyp='bias'))[0]
     
-
+    if args.cal_dark:
         combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
                                                                     combined=True, 
                                                                     include_path=True)[0])
    
 
+    print('list of the flat files')
+    for a_flat, f_name in bdf_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+        print(f_name)
 
-        for a_flat, f_name in raw_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            print(f_name)
+        if args.cal_bias:
+            print('BIAS')
             a_flat = ccdp.subtract_bias(a_flat, combined_bias)
+            print('DONE BIAS')
+        if args.cal_dark:
+            print('DARK')
             a_flat = ccdp.subtract_dark(a_flat, combined_dark, exposure_time='EXPOSURE', exposure_unit=u.s, scale=True)
-            a_flat.write(calibrated_path / f_name, overwrite=True)
-
-        calibrated_images.refresh()
+            print('done dark')
+        a_flat.write(calibrated_path / f_name, overwrite=True)
+    calibrated_images.refresh()
 
 
     flats = calibrated_images.summary['imagetyp'] == 'FLAT'
@@ -96,22 +86,37 @@ def flat_creation(args):
         combined_flat.meta['combined'] = True
 
         flat_file_name = f'combined_flat_{filtr}.fit'
-        combined_flat.write(master_path / flat_file_name, overwrite=True)
+        combined_flat.write(output_path / flat_file_name, overwrite=True)
 
     calibrated_images.refresh()
     
-    return(combined_flat)
+    return(flat_filters, combined_flat)
 
-#spit functions
-#additional arguments for the paths
-#put ifs into one for
-#show image function
+
+def show_flat(raw_flats, combined_flat, show=True):
+
+    #plot single flat and combined flat
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+
+    convenience_functions.show_image(CCDData.read(raw_flats[0], unit='adu').data, cmap='gray', ax=ax1, fig=fig)
+    ax1.set_title('Uncalibrated flat')
+    raw_flat_filter= raw_flats[0].summary[filter]
+
+    convenience_functions.show_image((combined_flat).data, cmap='gray', ax=ax2, fig=fig)
+    
+    ax2.set_title('{} flat images combined'.format(len(raw_flats, filter=raw_flat_filter)))
+    plt.show()
+
 
 
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Directory of the bias, darks and flats')
-    parser.add_argument('raw_files', type=str, default='/home/marinalinux/Downloads/data/bdf/', help='path of the raw files')
-    parser.add_argument('notabias',type=bool, default=False, help='set True if there is no bias to be substracted')
-    parser.add_argument('notadark',type=bool, default=False, help='set True if there is no dark to be substracted')
+    parser.add_argument('data_path', type=str, help='path of the bdf files')
+    parser.add_argument('output_path', type=str,nargs='?', default='', help='path where the combined files should be saved' )
+    parser.add_argument('calib_path', type=str,help='path where the calibrated files should be saved' )
+    parser.add_argument('cal_bias',type=str, nargs='?', default='', help='if true, there is bias to be calculated')
+    parser.add_argument('cal_dark',type=str, nargs='?', default='', help='if true, there is dark to be calculated')
     args = parser.parse_args()
-    combined_flat = flat_creation(args)
+    bdf_files, raw_flats, calibrated_path,calibrated_images, output_path, master_images= load_data(args)
+    combined_flat= flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, master_images, args)
+    show_flat(raw_flats, combined_flat)

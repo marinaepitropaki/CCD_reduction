@@ -20,208 +20,85 @@ import argparse
 import convenience_functions
 import image_sim
 
-def reducing(args):
 
-    master_path= Path(args.raw_files, 'masters')
-    master_path.mkdir(exist_ok=True)
-    master_images=ccdp.ImageFileCollection(master_path)
+def load_data(args):
 
+    master_images = ccdp.ImageFileCollection(args.data_path)
     raw_gaias = ccdp.ImageFileCollection(args.raw_images)
     raw_gaias_im = raw_gaias.files_filtered(imagetyp='light', include_path=True)
+    raw_gaias_im=list.sort(raw_gaias_im)
 
-    reduced_path= Path(args.raw_images, 'reduced')
+    if args.red_path:
+        reduced_path=Path(args.red_path)
+    else:
+        reduced_path=Path(args.raw_images, 'reduced')
     reduced_path.mkdir(exist_ok= True)
     reduced_images=ccdp.ImageFileCollection(reduced_path)
 
-
-
-    if args.notabias==True: 
-        if args.notadark==True :
-            # Reduce images (remove flats)
-            combined_flats = {ccd.header['filter']: ccd for ccd in master_images.ccds(imagetyp='flat', combined=True)}
-            combined_flat = CCDData.read(master_images.files_filtered(imagetyp='flat', 
-                                                                    combined=True, 
-                                                                    include_path=True)[0])
-            combo_calibs = master_images.summary[master_images.summary['combined'].filled(False).astype('bool')]
-            combo_calibs['date-obs', 'file', 'imagetyp', 'filter', 'exposure']
-
-            raw_gaias.summary
-
-            all_reds = []
-            light_ccds = []
-            for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-                light_ccds.append(light)
-                good_flat = combined_flats[light.header['filter']]
-                light = ccdp.flat_correct(light, good_flat)
-                all_reds.append(light)
-                light.write(reduced_path / file_name, overwrite=True)
-
-
-            reduced_images.refresh()
-            reduced_images.summary
-        else:
-                    # Reduce images (remove bias, darks, flats)
-            combined_darks = {ccd.header['EXPOSURE']: ccd for ccd in master_images.ccds(imagetyp='dark', combined=True)}
-            combined_flats = {ccd.header['filter']: ccd for ccd in master_images.ccds(imagetyp='flat', combined=True)}
-
-
-            combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
-                                                                        combined=True, 
-                                                                        include_path=True)[0])
-            combined_flat = CCDData.read(master_images.files_filtered(imagetyp='flat', 
-                                                                        combined=True, 
-                                                                        include_path=True)[0])
-
-
-            combo_calibs = master_images.summary[master_images.summary['combined'].filled(False).astype('bool')]
-            combo_calibs['date-obs', 'file', 'imagetyp', 'filter', 'exposure']
-
-            raw_gaias.summary
-
-            all_reds = []
-            light_ccds = []
-            for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-                light_ccds.append(light)
-                light = ccdp.subtract_dark(light, combined_dark, exposure_time='EXPOSURE', exposure_unit= u.s )      
-                good_flat = combined_flats[light.header['filter']]
-                light = ccdp.flat_correct(light, good_flat)
-                all_reds.append(light)
-                light.write(reduced_path / file_name, overwrite=True)
-
-
-            reduced_images.refresh()
-            reduced_images.summary
-
-    elif args.notaflat==True:
-        if args.notabias==True:
-            # Reduce images (remove bias, darks, flats)
-            combined_darks = {ccd.header['EXPOSURE']: ccd for ccd in master_images.ccds(imagetyp='dark', combined=True)}
-            # There is only one bias, so no need to set up a dictionary.
-            combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
-                                                                        combined=True, 
-                                                                        include_path=True)[0])
-            combo_calibs = master_images.summary[master_images.summary['combined'].filled(False).astype('bool')]
-            combo_calibs['date-obs', 'file', 'imagetyp', 'filter', 'exposure']
-
-            raw_gaias.summary
-
-            all_reds = []
-            light_ccds = []
-            for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-                light_ccds.append(light)
-
-                light = ccdp.subtract_dark(light, combined_dark, exposure_time='EXPOSURE', exposure_unit= u.s )
-                all_reds.append(light)
-                light.write(reduced_path / file_name, overwrite=True)
-            reduced_images.refresh()
-            reduced_images.summary
-        else: 
-                    # Reduce images (remove bias, darks, flats)
-            combined_darks = {ccd.header['EXPOSURE']: ccd for ccd in master_images.ccds(imagetyp='dark', combined=True)}
-            # There is only one bias, so no need to set up a dictionary.
-            combined_bias = [ccd for ccd in master_images.ccds(imagetyp='bias', combined=True)][0]
-
-            combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
-                                                                        combined=True, 
-                                                                        include_path=True)[0])
-            combo_calibs = master_images.summary[master_images.summary['combined'].filled(False).astype('bool')]
-            combo_calibs['date-obs', 'file', 'imagetyp', 'filter', 'exposure']
-
-            raw_gaias.summary
-
-            all_reds = []
-            light_ccds = []
-            for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-                light_ccds.append(light)
-
-                light = ccdp.subtract_bias(light, combined_bias)
-
-                light = ccdp.subtract_dark(light, combined_dark, exposure_time='EXPOSURE', exposure_unit= u.s )
-                all_reds.append(light)
-                light.write(reduced_path / file_name, overwrite=True)
-            reduced_images.refresh()
-            reduced_images.summary
-
-    elif args.notadark==True:
-            # Reduce images (remove bias, darks, flats)
-        combined_flats = {ccd.header['filter']: ccd for ccd in master_images.ccds(imagetyp='flat', combined=True)}
-        # There is only one bias, so no need to set up a dictionary.
-        combined_bias = [ccd for ccd in master_images.ccds(imagetyp='bias', combined=True)][0]
-
-        combined_flat = CCDData.read(master_images.files_filtered(imagetyp='flat', 
-                                                                    combined=True, 
-                                                                    include_path=True)[0])
-        combo_calibs = master_images.summary[master_images.summary['combined'].filled(False).astype('bool')]
-        combo_calibs['date-obs', 'file', 'imagetyp', 'filter', 'exposure']
-        raw_gaias.summary
-        all_reds = []
-        light_ccds = []
-        for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            light_ccds.append(light)
-            light = ccdp.subtract_bias(light, combined_bias)
-            good_flat = combined_flats[light.header['filter']]
-            light = ccdp.flat_correct(light, good_flat)
-            all_reds.append(light)
-            light.write(reduced_path / file_name, overwrite=True)
-
-
-        reduced_images.refresh()
-        reduced_images.summary
+    if args.al_path:
+        aligned_path=Path(args.al_path)
     else:
-
-        # Reduce images (remove bias, darks, flats)
-        combined_darks = {ccd.header['EXPOSURE']: ccd for ccd in master_images.ccds(imagetyp='dark', combined=True)}
-        combined_flats = {ccd.header['filter']: ccd for ccd in master_images.ccds(imagetyp='flat', combined=True)}
-
-        # There is only one bias, so no need to set up a dictionary.
-        combined_bias = [ccd for ccd in master_images.ccds(imagetyp='bias', combined=True)][0]
-
-        combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
-                                                                    combined=True, 
-                                                                    include_path=True)[0])
-        combined_flat = CCDData.read(master_images.files_filtered(imagetyp='flat', 
-                                                                    combined=True, 
-                                                                    include_path=True)[0])
-
-
-        combo_calibs = master_images.summary[master_images.summary['combined'].filled(False).astype('bool')]
-        combo_calibs['date-obs', 'file', 'imagetyp', 'filter', 'exposure']
-
-        raw_gaias.summary
-
-        all_reds = []
-        light_ccds = []
-        for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            light_ccds.append(light)
-
-            light = ccdp.subtract_bias(light, combined_bias)
-
-            light = ccdp.subtract_dark(light, combined_dark, exposure_time='EXPOSURE', exposure_unit= u.s )
-            
-            good_flat = combined_flats[light.header['filter']]
-            light = ccdp.flat_correct(light, good_flat)
-            all_reds.append(light)
-            light.write(reduced_path / file_name, overwrite=True)
-
-
-        reduced_images.refresh()
-        reduced_images.summary
-    return raw_gaias_im, reduced_images
-
-
-#Align Images
-def aligning (reduced_images, args):
-    aligned_path= Path(args.raw_images, 'aligned')
+        aligned_path= Path(args.raw_images, 'aligned')
     aligned_path.mkdir(exist_ok=True)
     aligned_images=ccdp.ImageFileCollection(aligned_path)
 
-     
+    if args.st_path:
+        stacked_path=Path(args.st_path)
+    else:
+        stacked_path=Path(args.raw_images, 'stacked')
+    stacked_path.mkdir(exist_ok=True)
+    stacked_images=ccdp.ImageFileCollection(stacked_path)
+
+    return master_images, raw_gaias, raw_gaias_im,reduced_path,reduced_images,aligned_path,aligned_images, stacked_path,stacked_images
+
+# Reduce images (remove bias, darks, flats)
+
+def reducing(raw_gaias, master_images,reduced_path, reduced_images, args):
+    if (args.cal_bias and args.cal_dark and cal_flats)=='':
+        print:'NOTHING TO REDUCE'
+    else:   
+        if args.cal_bias:
+            combined_bias = [ccd for ccd in master_images.ccds(imagetyp='bias', combined=True)][0]
+        
+        if args.cal_dark:
+            combined_darks = {ccd.header['EXPOSURE']: ccd for ccd in master_images.ccds(imagetyp='dark', combined=True)}
+            combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
+                                                                        combined=True, 
+                                                                        include_path=True)[0])
+        
+        if args.cal_flats:
+            combined_flats = {ccd.header['filter']: ccd for ccd in master_images.ccds(imagetyp='flat', combined=True)}
+            combined_flat = CCDData.read(master_images.files_filtered(imagetyp='flat', 
+                                                                        combined=True, 
+                                                                        include_path=True)[0])
+
+    all_reds = []
+    light_ccds = []
+    for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+        light_ccds.append(light)
+        if args.cal_bias:
+            light = ccdp.subtract_bias(light, combined_bias)
+        if args.cal_dark:
+            light = ccdp.subtract_dark(light, combined_dark, exposure_time='EXPOSURE', exposure_unit= u.s )
+        if args.cal_flats:    
+            good_flat = combined_flats[light.header['filter']]
+            light = ccdp.flat_correct(light, good_flat)
+        all_reds.append(light)
+        light.write(reduced_path / file_name, overwrite=True)
+
+
+    reduced_images.refresh()
+    return reduced_path, reduced_images
+
+
+#Align Images
+
+def aligning (reduced_images, aligned_path, aligned_images, args):
 
     sloan_filters = set(reduced_images.summary['filter'])
     print(sloan_filters)
 
-    for fltr in sorted(sloan_filters):
-            
+    for fltr in sorted(sloan_filters) :    
         sloan_fltr= reduced_images.ccds(imagetyp='light',filter=fltr, 
                                             return_fname=True, ccd_kwargs={'unit': 'adu'})
         sloan_fltr_list = list(sloan_fltr)
@@ -238,17 +115,16 @@ def aligning (reduced_images, args):
             aligned_light.meta['aligned'] = True
             aligned_file_name = f'aligned_light_file_{fltr}.fit'
             aligned_light.write(aligned_path / file_name , overwrite=True)    
-        aligned_images.refresh()
+    aligned_images.refresh()
 
 
-    return aligned_images
+    return aligned_path, aligned_images
 
 
 #Stacking Images
-def stacking(reduced_images, aligned_images,args):
-    stacked_path=Path(args.raw_images, 'stacked')
-    stacked_path.mkdir(exist_ok=True)
-    stacked_images=ccdp.ImageFileCollection(stacked_path)
+
+def stacking(aligned_images, stacked_path, stacked_images, args):
+
 
     stack_filters = set(aligned_images.summary['filter'])
     print(stack_filters)
@@ -280,21 +156,21 @@ def show_gaia(raw_gaias_im, stacked_images, show=True):
 
 
 
-#separate first function into two
-#change arguments of the paths 'reduced' "stacked" "aligned"
-#print ifs if there is not a thing to recuce
-
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Image after reduction')
-    parser.add_argument('raw_files', type=str, default='/home/marinalinux/Downloads/data/bdf/', help='path of the raw files')
-    parser.add_argument('raw_images', type=str, default='/home/marinalinux/Downloads/data/gaia19dke', help='path of the raw images')
-    parser.add_argument('notabias',type=bool, default=False, help='set True if there is no bias to be substracted')
-    parser.add_argument('notadark',type=bool, default=False, help='set True if there is no dark to be substracted')
-    parser.add_argument('notaflat',type=bool, default=False, help='set True if there is no flat to be substracted')
+    parser.add_argument('data_path', type=str, help='path of the combined bdf(master) files')
+    parser.add_argument('raw_images', type=str, help='path of the raw images')
+    parser.add_argument('cal_bias',type=str, nargs='?', default='', help='if true, there is bias to be calculated')
+    parser.add_argument('cal_dark',type=str, nargs='?', default='', help='if true, there is dark to be calculated')
+    parser.add_argument('cal_flats', type=str, nargs='?',default='',help='if true, there is flat to be calculated')
+    parser.add_argument('red_path', type=str,nargs='?', default='', help='path where the reduced files should be saved' )
+    parser.add_argument('al_path', type=str,nargs='?', default='', help='path where the aligned files should be saved' )
+    parser.add_argument('st_path', type=str,nargs='?', default='', help='path where the stacked files should be saved' )
     args = parser.parse_args()
-    raw_gaias_im, reduced_images= reducing(args)
-    aligned_images= aligning(reduced_images, args)
-    stacked_images= stacking(reduced_images, aligned_images,args)
+    raw_gaias, raw_gaias_im,  master_images, reduced_path,reduced_images,aligned_path,aligned_images,stacked_path,stacked_images= load_data(args)
+    reduced_path, reduced_images = reducing(raw_gaias, master_images,reduced_path, reduced_images, args)
+    aligned_path, aligned_images = aligning (reduced_images, aligned_path, aligned_images, args)
+    stacked_images = stacking(aligned_images, stacked_path, stacked_images, args)
     show_gaia(raw_gaias_im, stacked_images)
 
 

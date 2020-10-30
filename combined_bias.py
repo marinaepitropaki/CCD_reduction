@@ -14,22 +14,22 @@ import convenience_functions
 
 
 def load_data(args):
-    raw_files = ccdp.ImageFileCollection(args.data_path)
-    raw_biases = raw_files.files_filtered(imagetyp='bias', include_path=True)
+    bdf_files = ccdp.ImageFileCollection(args.data_path)
+    raw_biases = bdf_files.files_filtered(imagetyp='bias', include_path=True)
     
-    if args.master==True:
-        master_path=Path(args.masters)
+    if args.output_path:
+        output_path=Path(args.output_path)
     else:
-        master_path= Path(args.data_path, 'masters')
+        output_path= Path(args.data_path, 'masters')
 
-    master_path.mkdir(exist_ok=True)
-    master_images=ccdp.ImageFileCollection(master_path)
+    output_path.mkdir(exist_ok=True)
+    master_images=ccdp.ImageFileCollection(output_path)
     
 
     
-    return raw_biases, master_path
+    return raw_biases, output_path
 
-def bias_creation(master_path, args):
+def bias_creation(output_path, args):
     combined_bias = ccdp.combine(raw_biases,
                                 method='median',
                                 sigma_clip=True, sigma_clip_low_thresh=5, sigma_clip_high_thresh=5,
@@ -38,7 +38,7 @@ def bias_creation(master_path, args):
 
     combined_bias.meta['combined'] = True
 
-    combined_bias.write(master_path / 'combined_bias.fit', overwrite=True)
+    combined_bias.write(output_path / 'combined_bias.fit', overwrite=True)
     return combined_bias
 
 def show_bias(raw_biases, combined_bias, show=True):
@@ -56,12 +56,11 @@ def show_bias(raw_biases, combined_bias, show=True):
 
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Directory of the bias')
-    parser.add_argument('data_path', type=str, help='path of the raw files')
-    parser.add_argument('masters', type=str,nargs='?', default='arg.data_path/masters', help='path where the combined files should be saved' )
-    parser.add_argument('master', type=bool, help='if True, the combined will be saved in the path given by the user IF NOT, PRESS arg.data_path/masters ')
+    parser.add_argument('data_path', type=str, help='path of the bdf files')
+    parser.add_argument('output_path', type=str,nargs='?', default='', help='path where the combined files should be saved' )
     args = parser.parse_args()
-    raw_biases, master_path= load_data(args)
-    combined_bias= bias_creation(master_path, args)
+    raw_biases, output_path= load_data(args)
+    combined_bias= bias_creation(output_path, args)
     show_bias(raw_biases, combined_bias)
 
 
