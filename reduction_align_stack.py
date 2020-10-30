@@ -278,6 +278,12 @@ def show_gaia(raw_gaias_im, stacked_images, show=True):
     ax2.set_title('After reduction')
     plt.show()
 
+
+
+#separate first function into two
+#change arguments of the paths 'reduced' "stacked" "aligned"
+#print ifs if there is not a thing to recuce
+
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Image after reduction')
     parser.add_argument('raw_files', type=str, default='/home/marinalinux/Downloads/data/bdf/', help='path of the raw files')

@@ -44,7 +44,6 @@ def flat_creation(args):
         combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
                                                                     combined=True, 
                                                                     include_path=True)[0])
-        combined_dark
         for a_flat, f_name in raw_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
             print(f_name)
             a_flat = ccdp.subtract_dark(a_flat, combined_dark, exposure_time='EXPOSURE', exposure_unit=u.s, scale=True)
@@ -53,7 +52,6 @@ def flat_creation(args):
         calibrated_images.refresh()
     elif args.notabias==False and args.notadark==True:
         combined_bias = list(master_images.ccds(combined=True, imagetyp='bias'))[0]
-        combined_bias
         for a_flat, f_name in raw_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
             print(f_name)
             a_flat = ccdp.subtract_bias(a_flat, combined_bias)
@@ -62,12 +60,12 @@ def flat_creation(args):
         calibrated_images.refresh()
     else:
         combined_bias = list(master_images.ccds(combined=True, imagetyp='bias'))[0]
-        combined_bias
+    
 
         combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
                                                                     combined=True, 
                                                                     include_path=True)[0])
-        combined_dark
+   
 
 
         for a_flat, f_name in raw_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
@@ -80,9 +78,9 @@ def flat_creation(args):
 
 
     flats = calibrated_images.summary['imagetyp'] == 'FLAT'
-    flats
+    
     flat_filters = set(calibrated_images.summary['filter'][flats])
-    print(flat_filters)
+    print('flat filters:', flat_filters)
 
     for filtr in sorted(flat_filters):
         calibrated_flats = calibrated_images.files_filtered(imagetyp='flat', filter=filtr,
@@ -101,8 +99,13 @@ def flat_creation(args):
         combined_flat.write(master_path / flat_file_name, overwrite=True)
 
     calibrated_images.refresh()
-    combined_flat
+    
     return(combined_flat)
+
+#spit functions
+#additional arguments for the paths
+#put ifs into one for
+#show image function
 
 
 if __name__ == '__main__':

@@ -13,16 +13,23 @@ import convenience_functions
 
 
 
-def bias_creation(args):
-    raw_files = ccdp.ImageFileCollection(args.raw_files)
+def load_data(args):
+    raw_files = ccdp.ImageFileCollection(args.data_path)
+    raw_biases = raw_files.files_filtered(imagetyp='bias', include_path=True)
+    
+    if args.master==True:
+        master_path=Path(args.masters)
+    else:
+        master_path= Path(args.data_path, 'masters')
 
-    master_path= Path(args.raw_files, 'masters')
     master_path.mkdir(exist_ok=True)
     master_images=ccdp.ImageFileCollection(master_path)
+    
 
+    
+    return raw_biases, master_path
 
-    raw_biases = raw_files.files_filtered(imagetyp='bias', include_path=True)
-
+def bias_creation(master_path, args):
     combined_bias = ccdp.combine(raw_biases,
                                 method='median',
                                 sigma_clip=True, sigma_clip_low_thresh=5, sigma_clip_high_thresh=5,
@@ -32,7 +39,7 @@ def bias_creation(args):
     combined_bias.meta['combined'] = True
 
     combined_bias.write(master_path / 'combined_bias.fit', overwrite=True)
-    return raw_biases, combined_bias
+    return combined_bias
 
 def show_bias(raw_biases, combined_bias, show=True):
 
@@ -47,13 +54,14 @@ def show_bias(raw_biases, combined_bias, show=True):
 
 
 
-
-
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Directory of the bias')
-    parser.add_argument('raw_files', type=str, default='/home/marinalinux/Downloads/data/bdf/', help='path of the raw files')
+    parser.add_argument('data_path', type=str, help='path of the raw files')
+    parser.add_argument('masters', type=str,nargs='?', default='arg.data_path/masters', help='path where the combined files should be saved' )
+    parser.add_argument('master', type=bool, help='if True, the combined will be saved in the path given by the user IF NOT, PRESS arg.data_path/masters ')
     args = parser.parse_args()
-    raw_biases, combined_bias= bias_creation(args)
+    raw_biases, master_path= load_data(args)
+    combined_bias= bias_creation(master_path, args)
     show_bias(raw_biases, combined_bias)
 
 

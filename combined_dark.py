@@ -8,43 +8,47 @@ from astropy.nddata.utils import block_reduce, Cutout2D
 from matplotlib import pyplot as plt
 from astropy.nddata import CCDData
 import argparse
+import convenience_functions
 
+def load_data(args):
 
-def dark_creation(args):
-    raw_files = ccdp.ImageFileCollection(args.raw_files)
+    raw_files = ccdp.ImageFileCollection(args.data_path)
+    raw_darks = raw_files.files_filtered(imagetyp='dark', include_path=True)
 
-    calibrated_path = Path(args.raw_files, 'calibrated')
+    if args.calib==True:
+        calibrated_path=Path(args.calibs)
+    else:
+        calibrated_path = Path(args.data_path, 'calibrated')
+
     calibrated_path.mkdir(exist_ok=True)
     calibrated_images = ccdp.ImageFileCollection(calibrated_path)
 
-    master_path= Path(args.raw_files, 'masters')
+    if args.master==True:
+        master_path=Path(args.masters)
+    else:
+        master_path= Path(args.data_path, 'masters')
+
     master_path.mkdir(exist_ok=True)
     master_images=ccdp.ImageFileCollection(master_path)
 
     calibrated_images.refresh()
-    master_images.summary
-    calibrated_images.refresh()
-    calibrated_images.summary
-    combined_bias = CCDData.read(master_images.files_filtered(imagetyp='bias', combined=True,include_path=True)[0])
+    
+    return raw_files, raw_darks, calibrated_path,calibrated_images, master_path
 
-    combined_bias
 
-    if args.notabias == True:
-        for ccd, f_name in raw_files.ccds(imagetyp='dark', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            print(f_name)
-            ccd.write(calibrated_path / f_name, overwrite=True)
+def dark_creation(raw_files, calibrated_path,calibrated_images, master_path, args):
+    if args.not_bias == False:
+        combined_bias = CCDData.read(master_images.files_filtered(imagetyp='bias', combined=True,include_path=True)[0])
 
-        calibrated_images.refresh()
-        calibrated_images.summary
-    else:
-        
-        for ccd, f_name in raw_files.ccds(imagetyp='dark', return_fname=True, ccd_kwargs={'unit': 'adu'}):
-            print(f_name)
+    for ccd, f_name in raw_files.ccds(imagetyp='dark', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+        print(f_name)
+
+        if args.not_bias == False:
             ccd = ccdp.subtract_bias(ccd, combined_bias)
-            ccd.write(calibrated_path / f_name, overwrite=True)
 
-        calibrated_images.refresh()
-        calibrated_images.summary
+        ccd.write(calibrated_path / f_name, overwrite=True)
+
+    calibrated_images.refresh()
 
     darks = calibrated_images.summary['imagetyp'] == 'DARK'
     dark_times = set(calibrated_images.summary['exptime'][darks])
@@ -68,12 +72,27 @@ def dark_creation(args):
 
     return combined_dark
 
+def show_bias(raw_darks, combined_dark, show=True):
 
+    #plot single bias and combined bias
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+
+    convenience_functions.show_image(CCDData.read(raw_darks[0], unit='adu').data, cmap='gray', ax=ax1, fig=fig)
+    ax1.set_title('Uncalibrated dark')
+    convenience_functions.show_image(combined_dark.data, cmap='gray', ax=ax2, fig=fig)
+    ax2.set_title('{} dark images combined'.format(len(raw_darks)))
+    plt.show()
 
 
 if __name__ == '__main__':
     parser= argparse.ArgumentParser(description='Directory of the bias and the darks')
-    parser.add_argument('raw_files', type=str, default='/home/marinalinux/Downloads/data/bdf/', help='path of the raw files')
-    parser.add_argument('notabias',type=bool, default=False, help='set True if there is no bias to be substracted')
+    parser.add_argument('data_path', type=str, help='path of the raw files')
+    parser.add_argument('masters', type=str,help='path where the combined files should be saved' )
+    parser.add_argument('master', type=bool, help='if True, the combined will be saved in the path given by the user IF NOT, PRESS in arg.data_path/masters ')
+    parser.add_argument('calibs', type=str,help='path where the calibrated files should be saved' )
+    parser.add_argument('calib', type=bool, help='if True, the calibrated will be saved in the path given by the user IF NOT, PRESS in arg.data_path/calibrated ')
+    parser.add_argument('not_bias',type=bool, default=False, help='set True if there is no bias to be substracted')
     args = parser.parse_args()
-    combined_dark= dark_creation(args)
+    raw_files, raw_darks, calibrated_path,calibrated_images, master_path=load_data(args)
+    combined_dark= dark_creation(raw_files, calibrated_path,calibrated_images, master_path, args)
+    show_bias(raw_darks, combined_dark)
