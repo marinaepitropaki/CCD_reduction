@@ -12,6 +12,10 @@ import os
 import argparse
 import convenience_functions
 
+
+def inv_median(a):
+     return 1 / np.median(a)
+
 def load_data(args):
 
     bdf_files = ccdp.ImageFileCollection(args.data_path)
@@ -75,13 +79,13 @@ def flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, mas
     for filtr in sorted(flat_filters):
         calibrated_flats = calibrated_images.files_filtered(imagetyp='flat', filter=filtr,
                                                         include_path=True)
-
+        print(len(calibrated_flats))
         combined_flat = ccdp.combine(calibrated_flats,
-                                    method='median',
+                                    method='median', scale=inv_median,
                                     sigma_clip=True, sigma_clip_low_thresh=5, sigma_clip_high_thresh=5,
-                                    sigma_clip_func=np.ma.median, signma_clip_dev_func=mad_std,
-                                    mem_limit=350e6
-                                    )
+                                    sigma_clip_func=np.ma.median, 
+                                    signma_clip_dev_func=mad_std,
+                                    mem_limit=350e6)
 
         combined_flat.meta['combined'] = True
 
@@ -89,23 +93,33 @@ def flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, mas
         combined_flat.write(output_path / flat_file_name, overwrite=True)
 
     calibrated_images.refresh()
+    master_images.refresh()
+
     
-    return(flat_filters, combined_flat)
+    return flat_filters
 
 
-def show_flat(raw_flats, combined_flat, show=True):
+def show_flat(bdf_files, output_path, flat_filters, master_images, show=True):
+    print (flat_filters)
+  
+   
+    for filtr in sorted(flat_filters):
+        
+        flat_to_show =bdf_files.files_filtered(imagetyp='flat', filter=filtr,
+                                                        include_path=True)
+        
+        combined_flat= master_images.files_filtered(imagetyp='flat', filter=filtr,
+                                                        include_path=True)
+        #plot single flat and combined flat
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
 
-    #plot single flat and combined flat
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
-
-    convenience_functions.show_image(CCDData.read(raw_flats[0], unit='adu').data, cmap='gray', ax=ax1, fig=fig)
-    ax1.set_title('Uncalibrated flat')
-    raw_flat_filter= raw_flats[0].summary[filter]
-
-    convenience_functions.show_image((combined_flat).data, cmap='gray', ax=ax2, fig=fig)
+        convenience_functions.show_image(CCDData.read(flat_to_show[0], unit='adu').data, cmap='gray', ax=ax1, fig=fig)
+        ax1.set_title('Uncalibrated flat')
     
-    ax2.set_title('{} flat images combined'.format(len(raw_flats, filter=raw_flat_filter)))
-    plt.show()
+        convenience_functions.show_image(CCDData.read(combined_flat[0], unit= 'adu').data, cmap='gray', ax=ax2, fig=fig)
+        
+        ax2.set_title('{} flat images combined {}'.format(len(flat_to_show), filtr))
+        plt.show()
 
 
 
@@ -118,5 +132,5 @@ if __name__ == '__main__':
     parser.add_argument('cal_dark',type=str, nargs='?', default='', help='if true, there is dark to be calculated')
     args = parser.parse_args()
     bdf_files, raw_flats, calibrated_path,calibrated_images, output_path, master_images= load_data(args)
-    combined_flat= flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, master_images, args)
-    show_flat(raw_flats, combined_flat)
+    flat_filters=flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, master_images, args)
+    show_flat(bdf_files, output_path, flat_filters, master_images)
