@@ -1,5 +1,5 @@
 # CCD_reduction
-The following repository contains scripts with main duty to:\n
+The following repository contains scripts with main duty to:
 Load data (biases, darks, flats, images) from specific path
 Create and save masters
 Reduce images (remove bias, darks, flats)
