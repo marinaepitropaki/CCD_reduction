@@ -52,7 +52,7 @@ def find_nearest_dark_exposure(image, dark_exposure_times, tolerance=200, warnin
 
     if (tolerance is not None and 
         np.abs(image.header['exptime'] - closest_dark_exposure) > warning_tolerance):
-        pritn('WARNING:HIGH TOLERANCE')
+        print('WARNING:HIGH TOLERANCE')
 #rewrite
 
     if (tolerance is not None and 
@@ -68,7 +68,7 @@ def load_data(args):
 
     master_images = ccdp.ImageFileCollection(args.data_path)
     raw_gaias = ccdp.ImageFileCollection(args.raw_images)
-    raw_gaias_im = raw_gaias.files_filtered(imagetyp='light', include_path=True)
+    raw_gaias_im = raw_gaias.files_filtered(imagetyp='Light Frame', include_path=True)
     raw_gaias_im=sorted(raw_gaias_im)
    
     if args.red_path:
@@ -102,31 +102,31 @@ def reducing(raw_gaias, master_images,reduced_path, reduced_images, args):
         all_reds = []
         light_ccds = []
         print(raw_gaias.summary)
-        for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+        for light, file_name in raw_gaias.ccds(imagetyp='Light Frame', return_fname=True, ccd_kwargs={'unit': 'adu'}):
             light_ccds.append(light)
             all_reds.append(light)
             light.write(reduced_path / file_name, overwrite=True)
 
     else:   
         if args.cal_dark:
-            combined_darks = {ccd.header['EXPOSURE']: ccd for ccd in master_images.ccds(imagetyp='dark', combined=True)}
-            combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
+            combined_darks = {ccd.header['EXPOSURE']: ccd for ccd in master_images.ccds(imagetyp='Dark Frame', combined=True)}
+            combined_dark = CCDData.read(master_images.files_filtered(imagetyp='Dark Frame', 
                                                                         combined=True, 
                                                                         include_path=True)[0])
         
         if args.cal_flats:
-            combined_flats = {ccd.header['filter']: ccd for ccd in master_images.ccds(imagetyp='flat', combined=True)}
+            combined_flats = {ccd.header['filter']: ccd for ccd in master_images.ccds(imagetyp='Flat Field', combined=True)}
 
         if args.cal_bias:
-            combined_bias = [ccd for ccd in master_images.ccds(imagetyp='bias', combined=True)][0]
+            combined_bias = [ccd for ccd in master_images.ccds(imagetyp='Bias Frame', combined=True)][0]
 
 
         all_reds = []
         light_ccds = []
         print(raw_gaias.summary)
-        for light, file_name in raw_gaias.ccds(imagetyp='light', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+        for light, file_name in raw_gaias.ccds(imagetyp='Light Frame', return_fname=True, ccd_kwargs={'unit': 'adu'}):
             light_ccds.append(light)
-            
+            print(f'Image to reduce:{file_name}')
             if args.cal_bias:
                 light = ccdp.subtract_bias(light, combined_bias)
             if args.cal_dark:
@@ -151,18 +151,23 @@ def aligning (reduced_images, aligned_path, aligned_images, args):
     print('FILTERS USED:', sloan_filters)
 
     for fltr in sorted(sloan_filters) :    
-        sloan_fltr= reduced_images.ccds(imagetyp='light',filter=fltr, 
+        sloan_fltr= reduced_images.ccds(imagetyp='Light Frame',filter=fltr, 
                                             return_fname=True, ccd_kwargs={'unit': 'adu'})
         sloan_fltr_list = list(sloan_fltr)
         ref_im=sloan_fltr_list[0][0]
         
 
         for light, file_name in sloan_fltr_list :
-            
+           
             aligned_light=light.copy()
-            aligned_image, footprint= aa.register(light.data.byteswap().newbyteorder(), 
-                                                    ref_im.data.byteswap().newbyteorder())
-                
+            try:
+                aligned_image, footprint= aa.register(light.data.byteswap().newbyteorder(), 
+                                                    ref_im.data.byteswap().newbyteorder(),
+                                                    detection_sigma=3)
+            except aa.MaxIterError:
+                 print(f'Error in alignment:{file_name}')
+
+
             aligned_light.data=aligned_image
             aligned_light.meta['aligned'] = True
             aligned_file_name = f'aligned_light_file_{fltr}.fit'
@@ -181,7 +186,7 @@ def stacking(aligned_images, stacked_path, stacked_images, args):
     stack_filters = set(aligned_images.summary['filter'])
     
     for filtr in sorted(stack_filters):
-        stacked_image_list = aligned_images.files_filtered(imagetyp='light', filter=filtr,
+        stacked_image_list = aligned_images.files_filtered(imagetyp='Light Frame', filter=filtr,
                                                         include_path=True)
         stacked_image = ccdp.combine(stacked_image_list,
                                     method='median',
@@ -200,9 +205,9 @@ def stacking(aligned_images, stacked_path, stacked_images, args):
 def show_gaia(raw_gaias, stacked_images, stack_filters, show=True):
     print('READY TO SHOW THE IMAGES')
     for filtr in sorted(stack_filters):
-        raw_to_show=raw_gaias.files_filtered(imagetyp='light', filter=filtr, include_path=True)
+        raw_to_show=raw_gaias.files_filtered(imagetyp='Light Frame', filter=filtr, include_path=True)
 
-        stacked_to_show= stacked_images.files_filtered(imagetyp='light', filter=filtr, include_path=True)
+        stacked_to_show= stacked_images.files_filtered(imagetyp='Light Frame', filter=filtr, include_path=True)
         #plot uncalibrated image and calibrated image
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
 

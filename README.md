@@ -17,3 +17,5 @@
 
 
 ***Important functions for the script to run are the convinience_functions.py and the image_sim.py***
+
+***Make sure to check how the image_typ is refered to in your header file and change it needed***

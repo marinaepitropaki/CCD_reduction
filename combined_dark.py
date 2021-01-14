@@ -13,7 +13,7 @@ import convenience_functions
 def load_data(args):
 
     bdf_files = ccdp.ImageFileCollection(args.data_path)
-    raw_darks = bdf_files.files_filtered(imagetyp='dark', include_path=True)
+    raw_darks = bdf_files.files_filtered(imagetyp='Dark Frame', include_path=True)
 
     if args.calib_path:
         calibrated_path=Path(args.calib_path)
@@ -38,10 +38,10 @@ def load_data(args):
 
 def dark_creation(bdf_files, calibrated_path,calibrated_images, output_path,master_images, args):
     if args.cal_bias:
-        combined_bias = CCDData.read(master_images.files_filtered(imagetyp='bias', combined=True,include_path=True)[0])
+        combined_bias = CCDData.read(master_images.files_filtered(imagetyp='Bias Frame', combined=True,include_path=True)[0])
 
     print('list of the dark files')
-    for ccd, f_name in bdf_files.ccds(imagetyp='dark', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+    for ccd, f_name in bdf_files.ccds(imagetyp='Dark Frame', return_fname=True, ccd_kwargs={'unit': 'adu'}):
         print(f_name)
 
         if args.cal_bias:
@@ -51,12 +51,12 @@ def dark_creation(bdf_files, calibrated_path,calibrated_images, output_path,mast
 
     calibrated_images.refresh()
 
-    darks = calibrated_images.summary['imagetyp'] == 'DARK'
+    darks = calibrated_images.summary['imagetyp'] == 'Dark Frame'
     dark_times = set(calibrated_images.summary['exptime'][darks])
     print('the exposure time of the darks:', dark_times)
 
     for exp_time in sorted(dark_times):
-        calibrated_darks = calibrated_images.files_filtered(imagetyp='dark', exptime=exp_time,
+        calibrated_darks = calibrated_images.files_filtered(imagetyp='Dark Frame', exptime=exp_time,
                                                         include_path=True)
 
         combined_dark = ccdp.combine(calibrated_darks,
@@ -93,5 +93,5 @@ if __name__ == '__main__':
     parser.add_argument('cal_bias',type=str, nargs='?', default='', help='if true, there is bias to be calculated')
     args = parser.parse_args()
     bdf_files, raw_darks, calibrated_path,calibrated_images, output_path, master_images=load_data(args)
-    combined_dark= dark_creation(bdf_files, calibrated_path,calibrated_images, output_path, master_images, args)
+    combined_dark = dark_creation(bdf_files, calibrated_path,calibrated_images, output_path, master_images, args)
     show_dark(raw_darks, combined_dark)

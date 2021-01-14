@@ -44,19 +44,19 @@ def load_data(args):
 
 def flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, master_images, args):
    
-    set(bdf_files.summary['exptime'][bdf_files.summary['imagetyp'] == 'FLAT'])
+    set(bdf_files.summary['exptime'][bdf_files.summary['imagetyp'] == 'Flat Field'])
 
     if args.cal_bias:
-        combined_bias = list(master_images.ccds(combined=True, imagetyp='bias'))[0]
+        combined_bias = list(master_images.ccds(combined=True, imagetyp='Bias Frame'))[0]
     
     if args.cal_dark:
-        combined_dark = CCDData.read(master_images.files_filtered(imagetyp='dark', 
+        combined_dark = CCDData.read(master_images.files_filtered(imagetyp='Dark Frame', 
                                                                     combined=True, 
                                                                     include_path=True)[0])
    
 
     print('list of the flat files')
-    for a_flat, f_name in bdf_files.ccds(imagetyp='flat', return_fname=True, ccd_kwargs={'unit': 'adu'}):
+    for a_flat, f_name in bdf_files.ccds(imagetyp='Flat Field', return_fname=True, ccd_kwargs={'unit': 'adu'}):
         print(f_name)
 
         if args.cal_bias:
@@ -71,13 +71,13 @@ def flat_creation(bdf_files, calibrated_path,calibrated_images, output_path, mas
     calibrated_images.refresh()
 
 
-    flats = calibrated_images.summary['imagetyp'] == 'FLAT'
+    flats = calibrated_images.summary['imagetyp'] == 'Flat Field'
     
     flat_filters = set(calibrated_images.summary['filter'][flats])
     print('flat filters:', flat_filters)
 
     for filtr in sorted(flat_filters):
-        calibrated_flats = calibrated_images.files_filtered(imagetyp='flat', filter=filtr,
+        calibrated_flats = calibrated_images.files_filtered(imagetyp='Flat Field', filter=filtr,
                                                         include_path=True)
         print(len(calibrated_flats))
         combined_flat = ccdp.combine(calibrated_flats,
@@ -105,10 +105,10 @@ def show_flat(bdf_files, output_path, flat_filters, master_images, show=True):
    
     for filtr in sorted(flat_filters):
         
-        flat_to_show =bdf_files.files_filtered(imagetyp='flat', filter=filtr,
+        flat_to_show =bdf_files.files_filtered(imagetyp='Flat Field', filter=filtr,
                                                         include_path=True)
         
-        combined_flat= master_images.files_filtered(imagetyp='flat', filter=filtr,
+        combined_flat= master_images.files_filtered(imagetyp='Flat Field', filter=filtr,
                                                         include_path=True)
         #plot single flat and combined flat
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))

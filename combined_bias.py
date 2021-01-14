@@ -4,7 +4,7 @@ import numpy as np
 from astropy.stats import mad_std
 import matplotlib.pyplot as plt
 from astropy import visualization as aviz
-from astropy.nddata.utils import block_reduce, Cutout2D
+from astropy.nddata.utils import _block_reduce, Cutout2D
 from matplotlib import pyplot as plt
 from astropy.nddata import CCDData
 import argparse
@@ -15,8 +15,8 @@ import convenience_functions
 
 def load_data(args):
     bdf_files = ccdp.ImageFileCollection(args.data_path)
-    raw_biases = bdf_files.files_filtered(imagetyp='bias', include_path=True)
-    
+    raw_biases = bdf_files.files_filtered(imagetyp='Bias Frame', include_path=True)
+    print(raw_biases)
     if args.output_path:
         output_path=Path(args.output_path)
     else:
@@ -29,7 +29,7 @@ def load_data(args):
     
     return raw_biases, output_path
 
-def bias_creation(output_path, args):
+def bias_creation(raw_biases, output_path, args):
     combined_bias = ccdp.combine(raw_biases,
                                 method='median',
                                 sigma_clip=True, sigma_clip_low_thresh=5, sigma_clip_high_thresh=5,
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('output_path', type=str,nargs='?', default='', help='path where the combined files should be saved' )
     args = parser.parse_args()
     raw_biases, output_path= load_data(args)
-    combined_bias= bias_creation(output_path, args)
+    combined_bias= bias_creation(raw_biases, output_path, args)
     show_bias(raw_biases, combined_bias)
 
 
